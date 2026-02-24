@@ -68,6 +68,40 @@ const parseNum = (v: unknown): number | null => {
 
 const getCurrentYearShort = () => new Date().getFullYear().toString().slice(-2)
 
+const normalizeMuestraCode = (raw: string): string => {
+    const value = raw.trim().toUpperCase()
+    if (!value) return ''
+
+    const compact = value.replace(/\s+/g, '')
+    const year = getCurrentYearShort()
+    const match = compact.match(/^(\d+)(?:-SU)?(?:-(\d{2}))?$/)
+    if (match) {
+        return `${match[1]}-SU-${match[2] || year}`
+    }
+    return value
+}
+
+const normalizeNumeroOtCode = (raw: string): string => {
+    const value = raw.trim().toUpperCase()
+    if (!value) return ''
+
+    const compact = value.replace(/\s+/g, '')
+    const year = getCurrentYearShort()
+    const patterns = [
+        /^(?:N?OT-)?(\d+)(?:-(\d{2}))?$/,
+        /^(\d+)(?:-(?:N?OT))?(?:-(\d{2}))?$/,
+    ]
+
+    for (const pattern of patterns) {
+        const match = compact.match(pattern)
+        if (match) {
+            return `${match[1]}-${match[2] || year}`
+        }
+    }
+
+    return value
+}
+
 const normalizeFlexibleDate = (raw: string): string => {
     const value = raw.trim()
     if (!value) return ''
@@ -104,7 +138,7 @@ const getEnsayoId = (): number | null => {
     return Number.isInteger(n) && n > 0 ? n : null
 }
 
-type DateFieldKey = 'fecha_ensayo' | 'revisado_fecha' | 'aprobado_fecha'
+type FormattedFieldKey = 'muestra' | 'numero_ot' | 'fecha_ensayo' | 'revisado_fecha' | 'aprobado_fecha'
 
 const compute = (row: LLPPuntoRow) => {
     const agua = row.masa_recipiente_suelo_humedo != null && row.masa_recipiente_suelo_seco_1 != null
@@ -201,7 +235,7 @@ export default function LLPForm() {
         setForm(prev => ({ ...prev, [key]: value }))
     }, [])
 
-    const applyFormattedField = useCallback((key: DateFieldKey, formatter: (raw: string) => string) => {
+    const applyFormattedField = useCallback((key: FormattedFieldKey, formatter: (raw: string) => string) => {
         setForm(prev => {
             const current = String(prev[key] ?? '')
             const formatted = formatter(current)
@@ -312,7 +346,7 @@ export default function LLPForm() {
                 <div className="space-y-5">
                     {loadingEdit ? <div className="h-10 rounded-lg border border-border bg-muted/40 px-3 text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Cargando ensayo...</div> : null}
 
-                    <div className="bg-card border border-border rounded-lg shadow-sm"><div className="px-4 py-2.5 border-b border-border bg-muted/50 rounded-t-lg"><h2 className="text-sm font-semibold text-foreground">Encabezado</h2></div><div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">{renderText('Muestra *', form.muestra, v => setField('muestra', v), '123-SU-26')}{renderText('N OT *', form.numero_ot, v => setField('numero_ot', v), '1234-26')}{renderText('Fecha ensayo', form.fecha_ensayo, v => setField('fecha_ensayo', v), 'DD/MM/AA', () => applyFormattedField('fecha_ensayo', normalizeFlexibleDate))}{renderText('Realizado por *', form.realizado_por, v => setField('realizado_por', v))}</div></div>
+                    <div className="bg-card border border-border rounded-lg shadow-sm"><div className="px-4 py-2.5 border-b border-border bg-muted/50 rounded-t-lg"><h2 className="text-sm font-semibold text-foreground">Encabezado</h2></div><div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">{renderText('Muestra *', form.muestra, v => setField('muestra', v), '123-SU-26', () => applyFormattedField('muestra', normalizeMuestraCode))}{renderText('N OT *', form.numero_ot, v => setField('numero_ot', v), '1234-26', () => applyFormattedField('numero_ot', normalizeNumeroOtCode))}{renderText('Fecha ensayo', form.fecha_ensayo, v => setField('fecha_ensayo', v), 'DD/MM/AA', () => applyFormattedField('fecha_ensayo', normalizeFlexibleDate))}{renderText('Realizado por *', form.realizado_por, v => setField('realizado_por', v))}</div></div>
 
                     <div className="bg-card border border-border rounded-lg shadow-sm"><div className="px-4 py-2.5 border-b border-border bg-muted/50 rounded-t-lg"><h2 className="text-sm font-semibold text-foreground">Condiciones / Descripción</h2></div><div className="p-4 grid grid-cols-1 xl:grid-cols-2 gap-4">
                         <div className="space-y-3">{renderSelect('Método ensayo LL', form.metodo_ensayo_limite_liquido, METODO_LIQUIDO, v => setField('metodo_ensayo_limite_liquido', v as LLPPayload['metodo_ensayo_limite_liquido']))}{renderSelect('Herramienta ranurado', form.herramienta_ranurado_limite_liquido, HERRAMIENTA, v => setField('herramienta_ranurado_limite_liquido', v as LLPPayload['herramienta_ranurado_limite_liquido']))}{renderSelect('Dispositivo LL', form.dispositivo_limite_liquido, DISPOSITIVO, v => setField('dispositivo_limite_liquido', v as LLPPayload['dispositivo_limite_liquido']))}{renderSelect('Método laminación LP', form.metodo_laminacion_limite_plastico, LAMINACION, v => setField('metodo_laminacion_limite_plastico', v as LLPPayload['metodo_laminacion_limite_plastico']))}{renderNum('Contenido humedad inicial (%)', form.contenido_humedad_muestra_inicial_pct, v => setField('contenido_humedad_muestra_inicial_pct', parseNum(v)))}{renderText('Proceso selección muestra', form.proceso_seleccion_muestra || '', v => setField('proceso_seleccion_muestra', v))}{renderSelect('Preparación muestra', form.metodo_preparacion_muestra, PREPARACION, v => setField('metodo_preparacion_muestra', v as LLPPayload['metodo_preparacion_muestra']))}</div>
