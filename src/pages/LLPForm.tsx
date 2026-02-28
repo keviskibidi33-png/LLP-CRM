@@ -110,9 +110,6 @@ export default function LLPForm() {
     const [editingEnsayoId, setEditingEnsayoId] = useState<number | null>(() => getEnsayoId())
 
     const calc = useMemo(() => form.puntos.map(p => compute(p)), [form.puntos])
-    const ll = useMemo(() => avg(calc.slice(0, 3).map(x => x.humedad)), [calc])
-    const lp = useMemo(() => avg(calc.slice(3).map(x => x.humedad)), [calc])
-    const ip = useMemo(() => (ll != null && lp != null ? Number((ll - lp).toFixed(2)) : null), [ll, lp])
     const llCheckRows = useMemo(() => {
         return [0, 1, 2].map((idx) => {
             const nRaw = form.puntos[idx]?.numero_golpes
@@ -267,7 +264,7 @@ export default function LLPForm() {
     return (
         <div className="max-w-[1780px] mx-auto p-4 md:p-6">
             <div className="flex items-center gap-3 mb-6"><div className="p-2 rounded-lg bg-primary/10"><Beaker className="h-6 w-6 text-primary" /></div><div><h1 className="text-xl font-bold text-foreground">Limite Liquido / Limite Plastico - ASTM D4318-17e1</h1><p className="text-sm text-muted-foreground">Formulario operativo LLP</p></div></div>
-            <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_360px] xl:gap-5">
+            <div>
                 <div className="space-y-5">
                     {loadingEdit ? <div className="h-10 rounded-lg border border-border bg-muted/40 px-3 text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Cargando ensayo...</div> : null}
 
@@ -653,13 +650,6 @@ export default function LLPForm() {
                     </div>
                 </div>
 
-                <aside className="hidden xl:block">
-                    <div className="sticky top-4 bg-card border border-border rounded-lg shadow-sm p-4 text-xs space-y-4">
-                        <h3 className="text-sm font-semibold text-foreground">Formulario / Tabla de informacion</h3>
-                        <table className="w-full border border-border"><tbody><tr className="border-b"><td className="px-2 py-2">LL promedio</td><td className="px-2 py-2 text-right font-semibold">{ll ?? '-'}</td></tr><tr className="border-b"><td className="px-2 py-2">LP promedio</td><td className="px-2 py-2 text-right font-semibold">{lp ?? '-'}</td></tr><tr><td className="px-2 py-2">Indice plasticidad</td><td className="px-2 py-2 text-right font-semibold">{ip ?? '-'}</td></tr></tbody></table>
-                        <table className="w-full border border-border"><thead className="bg-muted/40"><tr><th className="px-2 py-2 text-left">Punto</th><th className="px-2 py-2 text-center">Humedad %</th></tr></thead><tbody>{POINT_HEADERS.map((h, i) => <tr key={i} className="border-t"><td className="px-2 py-2">{i < 3 ? `LL ${h}` : `LP ${h}`}</td><td className="px-2 py-2 text-center">{calc[i]?.humedad ?? '-'}</td></tr>)}</tbody></table>
-                    </div>
-                </aside>
             </div>
         </div>
     )
