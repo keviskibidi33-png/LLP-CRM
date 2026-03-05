@@ -27,6 +27,40 @@ const EQ_COPA = ['-', 'EQP-0048'] as const
 const EQ_RANURADOR = ['-', 'INS-0107'] as const
 const REVISADO = ['-', 'FABIAN LA ROSA'] as const
 const APROBADO = ['-', 'IRMA COAQUIRA'] as const
+const formatTodayShortDate = () => {
+    const d = new Date()
+    const dd = String(d.getDate()).padStart(2, '0')
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const yy = String(d.getFullYear()).slice(-2)
+    return `${dd}/${mm}/${yy}`
+}
+const getCurrentYearShort = () => new Date().getFullYear().toString().slice(-2)
+const normalizeFlexibleDate = (raw: string): string => {
+    const value = raw.trim()
+    if (!value) return ''
+    const digits = value.replace(/\D/g, '')
+    const year = getCurrentYearShort()
+    const pad2 = (part: string) => part.padStart(2, '0').slice(-2)
+    const build = (d: string, m: string, y: string = year) => `${pad2(d)}/${pad2(m)}/${pad2(y)}`
+
+    if (value.includes('/')) {
+        const [d = '', m = '', yRaw = ''] = value.split('/').map((part) => part.trim())
+        if (!d || !m) return value
+        let yy = yRaw.replace(/\D/g, '')
+        if (yy.length === 4) yy = yy.slice(-2)
+        if (yy.length === 1) yy = `0${yy}`
+        if (!yy) yy = year
+        return build(d, m, yy)
+    }
+
+    if (digits.length === 2) return build(digits[0], digits[1])
+    if (digits.length === 3) return build(digits[0], digits.slice(1, 3))
+    if (digits.length === 4) return build(digits.slice(0, 2), digits.slice(2, 4))
+    if (digits.length === 5) return build(digits[0], digits.slice(1, 3), digits.slice(3, 5))
+    if (digits.length === 6) return build(digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 6))
+    if (digits.length >= 8) return build(digits.slice(0, 2), digits.slice(2, 4), digits.slice(6, 8))
+    return value
+}
 const STICKY_DESC_WIDTH_CLASS = 'w-[320px] min-w-[320px] max-w-[320px]'
 const STICKY_UNIT_WIDTH_CLASS = 'w-[72px] min-w-[72px] max-w-[72px]'
 const STICKY_DESC_TH_CLASS = "sticky left-0 z-40 bg-muted/40 relative shadow-[8px_0_12px_-10px_rgba(15,23,42,0.35)] after:content-[''] after:absolute after:top-0 after:right-0 after:h-full after:w-px after:bg-border"
@@ -46,7 +80,7 @@ const emptyPoint = (): LLPPuntoRow => ({
 const initialState = (): LLPPayload => ({
     muestra: '',
     numero_ot: '',
-    fecha_ensayo: '',
+    fecha_ensayo: formatTodayShortDate(),
     realizado_por: '',
     metodo_ensayo_limite_liquido: '-',
     herramienta_ranurado_limite_liquido: '-',
@@ -68,9 +102,9 @@ const initialState = (): LLPPayload => ({
     ranurador_codigo: '-',
     observaciones: '',
     revisado_por: '-',
-    revisado_fecha: '',
+    revisado_fecha: formatTodayShortDate(),
     aprobado_por: '-',
-    aprobado_fecha: '',
+    aprobado_fecha: formatTodayShortDate(),
 })
 
 const parseNum = (v: unknown): number | null => {
@@ -265,8 +299,8 @@ export default function LLPForm() {
         }
     }, [editingEnsayoId, form])
 
-    const renderText = (label: string, value: string, onChange: (v: string) => void, placeholder?: string) => (
-        <div><label className="block text-xs font-medium text-muted-foreground mb-1">{label}</label><input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} autoComplete="off" data-lpignore="true" className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" /></div>
+    const renderText = (label: string, value: string, onChange: (v: string) => void, placeholder?: string, onBlur?: () => void) => (
+        <div><label className="block text-xs font-medium text-muted-foreground mb-1">{label}</label><input type="text" value={value} onChange={e => onChange(e.target.value)} onBlur={onBlur} placeholder={placeholder} autoComplete="off" data-lpignore="true" className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" /></div>
     )
 
     const renderNum = (label: string, value: number | null | undefined, onChange: (v: string) => void) => (
@@ -284,7 +318,7 @@ export default function LLPForm() {
                 <div className="space-y-5">
                     {loadingEdit ? <div className="h-10 rounded-lg border border-border bg-muted/40 px-3 text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Cargando ensayo...</div> : null}
 
-                    <div className="bg-card border border-border rounded-lg shadow-sm"><div className="px-4 py-2.5 border-b border-border bg-muted/50 rounded-t-lg"><h2 className="text-sm font-semibold text-foreground">Encabezado</h2></div><div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">{renderText('Muestra *', form.muestra, v => setField('muestra', v), '123-SU-26')}{renderText('N OT *', form.numero_ot, v => setField('numero_ot', v), '1234-26')}{renderText('Fecha ensayo', form.fecha_ensayo, v => setField('fecha_ensayo', v), 'DD/MM/AA')}{renderText('Realizado por *', form.realizado_por, v => setField('realizado_por', v))}</div></div>
+                    <div className="bg-card border border-border rounded-lg shadow-sm"><div className="px-4 py-2.5 border-b border-border bg-muted/50 rounded-t-lg"><h2 className="text-sm font-semibold text-foreground">Encabezado</h2></div><div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">{renderText('Muestra *', form.muestra, v => setField('muestra', v), '123-SU-26')}{renderText('N OT *', form.numero_ot, v => setField('numero_ot', v), '1234-26')}{renderText('Fecha ensayo', form.fecha_ensayo, v => setField('fecha_ensayo', v), 'DD/MM/AA', () => setField('fecha_ensayo', normalizeFlexibleDate(form.fecha_ensayo || '')))}{renderText('Realizado por *', form.realizado_por, v => setField('realizado_por', v))}</div></div>
 
                     <div className="bg-card border border-border rounded-lg shadow-sm">
                         <div className="px-4 py-2.5 border-b border-border bg-muted/50 rounded-t-lg">
@@ -657,7 +691,7 @@ export default function LLPForm() {
                         </div>
                     </div>
 
-                    <div className="bg-card border border-border rounded-lg shadow-sm"><div className="px-4 py-2.5 border-b border-border bg-muted/50 rounded-t-lg"><h2 className="text-sm font-semibold text-foreground">Equipos / observaciones / firmas</h2></div><div className="p-4 grid grid-cols-1 xl:grid-cols-2 gap-4"><div className="space-y-3">{renderSelect('Balanza 0.01 g', form.balanza_001g_codigo || '-', EQ_BALANZA, v => setField('balanza_001g_codigo', v))}{renderSelect('Horno 110 C', form.horno_110_codigo || '-', EQ_HORNO, v => setField('horno_110_codigo', v))}{renderSelect('Copa casagrande', form.copa_casagrande_codigo || '-', EQ_COPA, v => setField('copa_casagrande_codigo', v))}{renderSelect('Ranurador', form.ranurador_codigo || '-', EQ_RANURADOR, v => setField('ranurador_codigo', v))}</div><div className="space-y-3"><div><label className="block text-xs font-medium text-muted-foreground mb-1">Observaciones</label><textarea value={form.observaciones || ''} onChange={e => setField('observaciones', e.target.value)} rows={4} className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm resize-none" /></div><div className="grid grid-cols-1 md:grid-cols-2 gap-3">{renderSelect('Revisado por', form.revisado_por || '-', REVISADO, v => setField('revisado_por', v))}{renderSelect('Aprobado por', form.aprobado_por || '-', APROBADO, v => setField('aprobado_por', v))}{renderText('Fecha revisado', form.revisado_fecha || '', v => setField('revisado_fecha', v), 'DD/MM/AA')}{renderText('Fecha aprobado', form.aprobado_fecha || '', v => setField('aprobado_fecha', v), 'DD/MM/AA')}</div></div></div></div>
+                    <div className="bg-card border border-border rounded-lg shadow-sm"><div className="px-4 py-2.5 border-b border-border bg-muted/50 rounded-t-lg"><h2 className="text-sm font-semibold text-foreground">Equipos / observaciones / firmas</h2></div><div className="p-4 grid grid-cols-1 xl:grid-cols-2 gap-4"><div className="space-y-3">{renderSelect('Balanza 0.01 g', form.balanza_001g_codigo || '-', EQ_BALANZA, v => setField('balanza_001g_codigo', v))}{renderSelect('Horno 110 C', form.horno_110_codigo || '-', EQ_HORNO, v => setField('horno_110_codigo', v))}{renderSelect('Copa casagrande', form.copa_casagrande_codigo || '-', EQ_COPA, v => setField('copa_casagrande_codigo', v))}{renderSelect('Ranurador', form.ranurador_codigo || '-', EQ_RANURADOR, v => setField('ranurador_codigo', v))}</div><div className="space-y-3"><div><label className="block text-xs font-medium text-muted-foreground mb-1">Observaciones</label><textarea value={form.observaciones || ''} onChange={e => setField('observaciones', e.target.value)} rows={4} className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm resize-none" /></div><div className="grid grid-cols-1 md:grid-cols-2 gap-3">{renderSelect('Revisado por', form.revisado_por || '-', REVISADO, v => setField('revisado_por', v))}{renderSelect('Aprobado por', form.aprobado_por || '-', APROBADO, v => setField('aprobado_por', v))}{renderText('Fecha revisado', form.revisado_fecha || '', v => setField('revisado_fecha', v), 'DD/MM/AA', () => setField('revisado_fecha', normalizeFlexibleDate(form.revisado_fecha || '')))}{renderText('Fecha aprobado', form.aprobado_fecha || '', v => setField('aprobado_fecha', v), 'DD/MM/AA', () => setField('aprobado_fecha', normalizeFlexibleDate(form.aprobado_fecha || '')))}</div></div></div></div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <button onClick={clearAll} disabled={loading} className="h-11 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted/60 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"><Trash2 className="h-4 w-4" />Limpiar todo</button>
