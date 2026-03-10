@@ -35,6 +35,8 @@ const formatTodayShortDate = () => {
     return `${dd}/${mm}/${yy}`
 }
 const getCurrentYearShort = () => new Date().getFullYear().toString().slice(-2)
+const DEFAULT_MUESTRA_TIPO = 'SU'
+const getMuestraSuffixOptions = (year: string) => [`SU-${year}`, `AG-${year}`] as const
 const normalizeFlexibleDate = (raw: string): string => {
     const value = raw.trim()
     if (!value) return ''
@@ -63,10 +65,10 @@ const normalizeFlexibleDate = (raw: string): string => {
 }
 const STICKY_DESC_WIDTH_CLASS = 'w-[320px] min-w-[320px] max-w-[320px]'
 const STICKY_UNIT_WIDTH_CLASS = 'w-[72px] min-w-[72px] max-w-[72px]'
-const STICKY_DESC_TH_CLASS = "sticky left-0 z-40 bg-muted/40 relative shadow-[8px_0_12px_-10px_rgba(15,23,42,0.35)] after:content-[''] after:absolute after:top-0 after:right-0 after:h-full after:w-px after:bg-border"
-const STICKY_DESC_TD_CLASS = "sticky left-0 z-20 bg-card relative shadow-[8px_0_12px_-10px_rgba(15,23,42,0.25)] after:content-[''] after:absolute after:top-0 after:right-0 after:h-full after:w-px after:bg-border"
-const STICKY_UNIT_TH_CLASS = 'sticky left-[320px] z-30 bg-muted/40'
-const STICKY_UNIT_TD_CLASS = 'sticky left-[320px] z-10 bg-card'
+const STICKY_DESC_TH_CLASS = "sticky left-0 z-50 bg-muted relative shadow-[8px_0_12px_-10px_rgba(15,23,42,0.35)] after:content-[''] after:absolute after:top-0 after:right-0 after:h-full after:w-px after:bg-border"
+const STICKY_DESC_TD_CLASS = "sticky left-0 z-30 bg-card relative shadow-[8px_0_12px_-10px_rgba(15,23,42,0.25)] after:content-[''] after:absolute after:top-0 after:right-0 after:h-full after:w-px after:bg-border"
+const STICKY_UNIT_TH_CLASS = "sticky left-[320px] z-40 bg-muted relative shadow-[8px_0_12px_-10px_rgba(15,23,42,0.30)] after:content-[''] after:absolute after:top-0 after:right-0 after:h-full after:w-px after:bg-border"
+const STICKY_UNIT_TD_CLASS = "sticky left-[320px] z-20 bg-card relative shadow-[8px_0_12px_-10px_rgba(15,23,42,0.18)] after:content-[''] after:absolute after:top-0 after:right-0 after:h-full after:w-px after:bg-border"
 
 const emptyPoint = (): LLPPuntoRow => ({
     recipiente_numero: '',
@@ -113,6 +115,47 @@ const parseNum = (v: unknown): number | null => {
     return Number.isFinite(n) ? n : null
 }
 
+const normalizeNumeroOtCode = (raw: string): string => {
+    const value = raw.trim().toUpperCase()
+    if (!value) return ''
+    const compact = value.replace(/\s+/g, '')
+    const match = compact.match(/^(?:N?OT-)?(\d+)(?:-(\d{2}))?$/) ?? compact.match(/^(\d+)(?:-(?:N?OT))?(?:-(\d{2}))?$/)
+    if (!match) return value
+    return `${match[1]}-${getCurrentYearShort()}`
+}
+
+const normalizeMuestraNumero = (raw: string): string => raw.replace(/\D/g, '')
+
+const parseMuestraCode = (raw: string, year: string): { numero: string; suffix: string } => {
+    const value = raw.trim().toUpperCase()
+    if (!value) return { numero: '', suffix: `${DEFAULT_MUESTRA_TIPO}-${year}` }
+    const match = value.match(/^(\d+)-(SU|AG)-(\d{2})$/)
+    if (match) {
+        const tipo = match[2] || DEFAULT_MUESTRA_TIPO
+        return { numero: match[1], suffix: `${tipo}-${year}` }
+    }
+    const digits = value.match(/^(\d+)/)?.[1] ?? ''
+    const tipo = value.includes('AG') ? 'AG' : DEFAULT_MUESTRA_TIPO
+    return { numero: digits, suffix: `${tipo}-${year}` }
+}
+
+const buildMuestraCode = (numero: string, suffix: string): string => {
+    const clean = normalizeMuestraNumero(numero)
+    return clean ? `${clean}-${suffix}` : ''
+}
+
+const isMuestraValid = (raw: string, year: string): boolean => {
+    const value = raw.trim().toUpperCase()
+    const regex = new RegExp(`^\\d+-(SU|AG)-${year}$`)
+    return regex.test(value)
+}
+
+const isNumeroOtValid = (raw: string, year: string): boolean => {
+    const value = raw.trim()
+    const regex = new RegExp(`^\\d+-${year}$`)
+    return regex.test(value)
+}
+
 const normalizeRanuradorCodigo = (v: unknown): string => {
     if (typeof v !== 'string') return '-'
     const raw = v.trim().toUpperCase()
@@ -157,6 +200,10 @@ export default function LLPForm() {
     const [loading, setLoading] = useState(false)
     const [loadingEdit, setLoadingEdit] = useState(false)
     const [editingEnsayoId, setEditingEnsayoId] = useState<number | null>(() => getEnsayoId())
+    const currentYear = getCurrentYearShort()
+    const muestraSuffixOptions = getMuestraSuffixOptions(currentYear)
+    const [muestraNumero, setMuestraNumero] = useState('')
+    const [muestraSuffix, setMuestraSuffix] = useState<string>(muestraSuffixOptions[0])
 
     const calc = useMemo(() => form.puntos.map(p => compute(p)), [form.puntos])
     const llCheckRows = useMemo(() => {
@@ -228,6 +275,12 @@ export default function LLPForm() {
     }, [])
 
     useEffect(() => {
+        const parsed = parseMuestraCode(form.muestra || '', currentYear)
+        setMuestraNumero((prev) => (prev === parsed.numero ? prev : parsed.numero))
+        setMuestraSuffix((prev) => (prev === parsed.suffix ? prev : parsed.suffix))
+    }, [currentYear, form.muestra])
+
+    useEffect(() => {
         const raw = localStorage.getItem(`${DRAFT_KEY}:${editingEnsayoId ?? 'new'}`)
         if (!raw) return
         try { setForm(normalizeForm(JSON.parse(raw))) } catch { /* ignore */ }
@@ -265,6 +318,14 @@ export default function LLPForm() {
     const save = useCallback(async (download: boolean) => {
         if (!form.muestra || !form.numero_ot || !form.realizado_por) {
             toast.error('Complete Muestra, N OT y Realizado por.')
+            return
+        }
+        if (!isMuestraValid(form.muestra, currentYear)) {
+            toast.error(`La muestra debe terminar en SU-${currentYear} o AG-${currentYear}.`)
+            return
+        }
+        if (!isNumeroOtValid(form.numero_ot, currentYear)) {
+            toast.error(`El N OT debe terminar en -${currentYear}.`)
             return
         }
         setLoading(true)
@@ -318,7 +379,47 @@ export default function LLPForm() {
                 <div className="space-y-5">
                     {loadingEdit ? <div className="h-10 rounded-lg border border-border bg-muted/40 px-3 text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Cargando ensayo...</div> : null}
 
-                    <div className="bg-card border border-border rounded-lg shadow-sm"><div className="px-4 py-2.5 border-b border-border bg-muted/50 rounded-t-lg"><h2 className="text-sm font-semibold text-foreground">Encabezado</h2></div><div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">{renderText('Muestra *', form.muestra, v => setField('muestra', v), '123-SU-26')}{renderText('N OT *', form.numero_ot, v => setField('numero_ot', v), '1234-26')}{renderText('Fecha ensayo', form.fecha_ensayo, v => setField('fecha_ensayo', v), 'DD/MM/AA', () => setField('fecha_ensayo', normalizeFlexibleDate(form.fecha_ensayo || '')))}{renderText('Realizado por *', form.realizado_por, v => setField('realizado_por', v))}</div></div>
+                    <div className="bg-card border border-border rounded-lg shadow-sm">
+                        <div className="px-4 py-2.5 border-b border-border bg-muted/50 rounded-t-lg">
+                            <h2 className="text-sm font-semibold text-foreground">Encabezado</h2>
+                        </div>
+                        <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div>
+                                <label className="block text-xs font-medium text-muted-foreground mb-1">Muestra *</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={muestraNumero}
+                                        onChange={e => {
+                                            const nextNumero = normalizeMuestraNumero(e.target.value)
+                                            setMuestraNumero(nextNumero)
+                                            setField('muestra', buildMuestraCode(nextNumero, muestraSuffix))
+                                        }}
+                                        placeholder="123"
+                                        autoComplete="off"
+                                        data-lpignore="true"
+                                        className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                    />
+                                    <select
+                                        value={muestraSuffix}
+                                        onChange={e => {
+                                            const nextSuffix = e.target.value
+                                            setMuestraSuffix(nextSuffix)
+                                            setField('muestra', buildMuestraCode(muestraNumero, nextSuffix))
+                                        }}
+                                        className="w-full h-9 pl-3 pr-8 rounded-md border border-input bg-background text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-ring"
+                                    >
+                                        {muestraSuffixOptions.map(option => (
+                                            <option key={option} value={option}>{option}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            {renderText('N OT *', form.numero_ot, v => setField('numero_ot', v), `1234-${currentYear}`, () => setField('numero_ot', normalizeNumeroOtCode(form.numero_ot || '')))}
+                            {renderText('Fecha ensayo', form.fecha_ensayo, v => setField('fecha_ensayo', v), 'DD/MM/AA', () => setField('fecha_ensayo', normalizeFlexibleDate(form.fecha_ensayo || '')))}
+                            {renderText('Realizado por *', form.realizado_por, v => setField('realizado_por', v))}
+                        </div>
+                    </div>
 
                     <div className="bg-card border border-border rounded-lg shadow-sm">
                         <div className="px-4 py-2.5 border-b border-border bg-muted/50 rounded-t-lg">
@@ -530,9 +631,9 @@ export default function LLPForm() {
                         <div className="px-4 py-2.5 border-b border-border bg-muted/50 rounded-t-lg">
                             <h2 className="text-sm font-semibold text-foreground">Tabla principal</h2>
                         </div>
-                        <div className="p-4 overflow-x-auto relative">
+                        <div className="p-4 overflow-x-auto relative isolate">
                             <table className="w-full min-w-[1100px] table-fixed text-sm">
-                                <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground">
+                                <thead className="bg-muted text-xs font-semibold text-muted-foreground">
                                     <tr>
                                         <th className={`${STICKY_DESC_WIDTH_CLASS} px-3 py-2 border-b border-r border-border text-left ${STICKY_DESC_TH_CLASS}`} rowSpan={2}>DESCRIPCIÓN</th>
                                         <th className={`${STICKY_UNIT_WIDTH_CLASS} px-2 py-2 border-b border-r border-border text-center ${STICKY_UNIT_TH_CLASS}`} rowSpan={2}>UND</th>
