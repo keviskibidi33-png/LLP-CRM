@@ -6,6 +6,19 @@ import { getLLPEnsayoDetail, saveAndDownloadLLPExcel, saveLLPEnsayo } from '@/se
 import type { LLPPayload, LLPPuntoRow } from '@/types'
 import FormatConfirmModal from '../components/FormatConfirmModal'
 
+
+const buildFormatPreview = (sampleCode: string | undefined, materialCode: 'SU' | 'AG', ensayo: string) => {
+    const currentYear = new Date().getFullYear().toString().slice(-2)
+    const normalized = (sampleCode || '').trim().toUpperCase()
+    const fullMatch = normalized.match(/^(\d+)(?:-[A-Z0-9. ]+)?-(\d{2,4})$/)
+    const partialMatch = normalized.match(/^(\d+)(?:-(\d{2,4}))?$/)
+    const match = fullMatch || partialMatch
+    const numero = match?.[1] || 'xxxx'
+    const year = (match?.[2] || currentYear).slice(-2)
+    return `Formato N-${numero}-${materialCode}-${year} ${ensayo}`
+}
+
+
 const POINT_HEADERS = ['1', '2', '3', '1', '2']
 const DRAFT_KEY = 'llp_form_draft_v1'
 const DEBOUNCE_MS = 700
@@ -339,11 +352,11 @@ export default function LLPForm() {
                 puntos: form.puntos.map((p, idx) => ({ ...p, numero_golpes: idx < 3 ? parseNum(p.numero_golpes) : null })),
             }
             if (download) {
-                const { blob } = await saveAndDownloadLLPExcel(payload, editingEnsayoId ?? undefined)
+                const { blob, filename } = await saveAndDownloadLLPExcel(payload, editingEnsayoId ?? undefined)
                 const url = URL.createObjectURL(blob)
                 const a = document.createElement('a')
                 a.href = url
-                a.download = `LLP_${payload.numero_ot}_${new Date().toISOString().slice(0, 10)}.xlsx`
+                a.download = filename || `${buildFormatPreview(form.muestra, 'SU', 'LLP')}.xlsx`
                 a.click()
                 URL.revokeObjectURL(url)
             } else {
@@ -807,7 +820,7 @@ export default function LLPForm() {
             </div>
             <FormatConfirmModal
                 open={pendingFormatAction !== null}
-                formatLabel={`Formato N-xxxx-SU-${new Date().getFullYear().toString().slice(-2)} LLP`}
+                formatLabel={buildFormatPreview(form.muestra, 'SU', 'LLP')}
                 actionLabel={pendingFormatAction ? 'Guardar y Descargar' : 'Guardar'}
                 onClose={() => setPendingFormatAction(null)}
                 onConfirm={() => {

@@ -10,6 +10,19 @@ import {
 import type { ProctorPayload, ProctorEnsayoDetail, ProctorPunto } from '@/types'
 import FormatConfirmModal from '../components/FormatConfirmModal'
 
+
+const buildFormatPreview = (sampleCode: string | undefined, materialCode: 'SU' | 'AG', ensayo: string) => {
+    const currentYear = new Date().getFullYear().toString().slice(-2)
+    const normalized = (sampleCode || '').trim().toUpperCase()
+    const fullMatch = normalized.match(/^(\d+)(?:-[A-Z0-9. ]+)?-(\d{2,4})$/)
+    const partialMatch = normalized.match(/^(\d+)(?:-(\d{2,4}))?$/)
+    const match = fullMatch || partialMatch
+    const numero = match?.[1] || 'xxxx'
+    const year = (match?.[2] || currentYear).slice(-2)
+    return `Formato N-${numero}-${materialCode}-${year} ${ensayo}`
+}
+
+
 const POINT_COLUMNS = ['Punto 1', 'Punto 2', 'Punto 3', 'Punto 4', 'Punto 5']
 const SIEVE_LABELS = ['19 mm (3/4 in)', '9.5 mm (3/8 in)', '4.75 mm (No. 4)', 'Menor (No. 4)', 'Total']
 const FIXED_NUMERO_CAPAS = 5
@@ -696,11 +709,11 @@ export default function ProctorForm() {
         }
     }, [computedPoints, form, sievePreview])
 
-    const downloadBlob = useCallback((blob: Blob, numeroOt: string) => {
+    const downloadBlob = useCallback((blob: Blob, filename: string) => {
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `PROCTOR_${numeroOt}_${new Date().toISOString().slice(0, 10)}.xlsx`
+        a.download = filename
         a.click()
         URL.revokeObjectURL(url)
     }, [])
@@ -752,8 +765,8 @@ export default function ProctorForm() {
         try {
             const payload = buildPayload()
             if (withDownload) {
-                const { blob } = await saveAndDownloadProctorExcel(payload, editingEnsayoId ?? undefined)
-                downloadBlob(blob, payload.numero_ot)
+                const { blob, filename } = await saveAndDownloadProctorExcel(payload, editingEnsayoId ?? undefined)
+                downloadBlob(blob, filename || `${buildFormatPreview(form.muestra, 'SU', 'PROCTOR')}.xlsx`)
                 toast.success(editingEnsayoId ? 'Formato Proctor actualizado y descargado.' : 'Formato Proctor guardado y descargado.')
             } else {
                 await saveProctorEnsayo(payload, editingEnsayoId ?? undefined)
@@ -1010,6 +1023,19 @@ export default function ProctorForm() {
                     densidadSecaMaxima={densidadSecaMaxima}
                 />
             </div>
+
+            <FormatConfirmModal
+                open={pendingFormatAction !== null}
+                formatLabel={buildFormatPreview(form.muestra, 'SU', 'PROCTOR')}
+                actionLabel={pendingFormatAction ? 'Guardar y Descargar' : 'Guardar'}
+                onClose={() => setPendingFormatAction(null)}
+                onConfirm={() => {
+                    if (pendingFormatAction === null) return
+                    const shouldDownload = pendingFormatAction
+                    setPendingFormatAction(null)
+                    void handleSave(shouldDownload)
+                }}
+            />
 
             <ConfirmActionModal
                 isOpen={isClearDraftModalOpen}
