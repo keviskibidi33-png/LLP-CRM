@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { Beaker, ChevronDown, Download, Loader2, Trash2 } from 'lucide-react'
 import { getLLPEnsayoDetail, saveAndDownloadLLPExcel, saveLLPEnsayo } from '@/services/api'
 import type { LLPPayload, LLPPuntoRow } from '@/types'
+import FormatConfirmModal from '../components/FormatConfirmModal'
 
 const POINT_HEADERS = ['1', '2', '3', '1', '2']
 const DRAFT_KEY = 'llp_form_draft_v1'
@@ -314,6 +315,8 @@ export default function LLPForm() {
         localStorage.removeItem(`${DRAFT_KEY}:${editingEnsayoId ?? 'new'}`)
         setForm(initialState())
     }, [editingEnsayoId])
+    const [pendingFormatAction, setPendingFormatAction] = useState<boolean | null>(null)
+
 
     const save = useCallback(async (download: boolean) => {
         if (!form.muestra || !form.numero_ot || !form.realizado_por) {
@@ -796,12 +799,25 @@ export default function LLPForm() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <button onClick={clearAll} disabled={loading} className="h-11 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted/60 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"><Trash2 className="h-4 w-4" />Limpiar todo</button>
-                        <button onClick={() => void save(false)} disabled={loading} className="h-11 rounded-lg border border-primary text-primary font-semibold hover:bg-primary/10 transition-colors disabled:opacity-50">{loading ? 'Guardando...' : 'Guardar'}</button>
-                        <button onClick={() => void save(true)} disabled={loading} className="h-11 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">{loading ? <><Loader2 className="h-4 w-4 animate-spin" />Procesando...</> : <><Download className="h-4 w-4" />Guardar y descargar Excel</>}</button>
+                        <button onClick={() => setPendingFormatAction(false)} disabled={loading} className="h-11 rounded-lg border border-primary text-primary font-semibold hover:bg-primary/10 transition-colors disabled:opacity-50">{loading ? 'Guardando...' : 'Guardar'}</button>
+                        <button onClick={() => setPendingFormatAction(true)} disabled={loading} className="h-11 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">{loading ? <><Loader2 className="h-4 w-4 animate-spin" />Procesando...</> : <><Download className="h-4 w-4" />Guardar y descargar Excel</>}</button>
                     </div>
                 </div>
 
             </div>
+            <FormatConfirmModal
+                open={pendingFormatAction !== null}
+                formatLabel={`Formato N-xxxx-SU-${new Date().getFullYear().toString().slice(-2)} LLP`}
+                actionLabel={pendingFormatAction ? 'Guardar y Descargar' : 'Guardar'}
+                onClose={() => setPendingFormatAction(null)}
+                onConfirm={() => {
+                    if (pendingFormatAction === null) return
+                    const shouldDownload = pendingFormatAction
+                    setPendingFormatAction(null)
+                    void save(shouldDownload)
+                }}
+            />
+
         </div>
     )
 }
