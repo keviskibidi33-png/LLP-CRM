@@ -36,7 +36,7 @@ const ELIMINACION_PARTICULAS_OPTIONS = [
 ] as const
 const CONDICION = ['-', 'ALTERADO', 'INTACTO'] as const
 const EQ_BALANZA = ['-', 'EQP-0045'] as const
-const EQ_HORNO = ['-', 'EQP-0150'] as const
+const EQ_HORNO = ['-', 'EQP-0150', 'EQP-0049'] as const
 const EQ_COPA = ['-', 'EQP-0048'] as const
 const EQ_RANURADOR = ['-', 'INS-0107'] as const
 const REVISADO = ['-', 'FABIAN LA ROSA'] as const

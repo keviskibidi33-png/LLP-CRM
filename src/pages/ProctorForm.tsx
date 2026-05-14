@@ -36,7 +36,7 @@ const GOLPES_OPTIONS: Array<'-' | '25' | '56'> = ['-', '25', '56']
 const TAMIZ_METODO_OPTIONS = ['-', 'INS-0050 (3/4in)', 'INS-0053 (No 4)', 'INS-0052 (3/8in)'] as const
 const BALANZA_1G_OPTIONS = ['-', 'EQP-0054'] as const
 const BALANZA_01G_OPTIONS = ['-', 'EQP-0046'] as const
-const HORNO_110_OPTIONS = ['-', 'EQP-0150'] as const
+const HORNO_110_OPTIONS = ['-', 'EQP-0150', 'EQP-0049'] as const
 const MOLDE_OPTIONS = ['-', 'INS-0195 (MOLDE 6in)', 'INS-0114 (MOLDE 4in)'] as const
 const PISON_OPTIONS = ['-', 'INS-0196'] as const
 
@@ -972,7 +972,7 @@ export default function ProctorForm() {
                             onChange={v => set('balanza_codigo', v)}
                         />
                         <SelectField
-                            label="Horno 110 C (-, EQP-0150)"
+                            label="Horno 110 C (-, EQP-0150, EQP-0049)"
                             value={form.horno_110_codigo || '-'}
                             options={HORNO_110_OPTIONS}
                             onChange={v => set('horno_110_codigo', v)}
