@@ -43,7 +43,7 @@ const REVISADO = ['-', 'FABIAN LA ROSA'] as const
 const APROBADO = ['-', 'IRMA COAQUIRA'] as const
 const formatTodayShortDate = () => {
     const [yyyy = '', mm = '', dd = ''] = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Lima' }).split('-')
-    return `${dd}/${mm}/${yyyy.slice(-2)}`
+    return `${yyyy}/${mm}/${dd}`
 }
 const getCurrentYearShort = () => new Date().getFullYear().toString().slice(-2)
 const DEFAULT_MUESTRA_TIPO = 'SU'

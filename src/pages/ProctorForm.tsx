@@ -57,7 +57,7 @@ const getDraftStorageKey = (ensayoId: number | null) =>
 const getCurrentYearShort = () => new Date().getFullYear().toString().slice(-2)
 const formatTodayShortDate = () => {
     const [yyyy = '', mm = '', dd = ''] = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Lima' }).split('-')
-    return `${dd}/${mm}/${yyyy.slice(-2)}`
+    return `${yyyy}/${mm}/${dd}`
 }
 
 const normalizeMuestraCode = (raw: string): string => {
