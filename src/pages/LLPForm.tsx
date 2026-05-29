@@ -46,8 +46,6 @@ const formatTodayShortDate = () => {
     return `${yyyy}/${mm}/${dd}`
 }
 const getCurrentYearShort = () => new Date().getFullYear().toString().slice(-2)
-const DEFAULT_MUESTRA_TIPO = 'SU'
-const getMuestraSuffixOptions = (year: string) => [`SU-${year}`, `AG-${year}`] as const
 const normalizeFlexibleDate = (raw: string): string => {
     const value = raw.trim()
     if (!value) return ''
@@ -144,37 +142,62 @@ const normalizeNumeroOtCode = (raw: string): string => {
     return `${match[1]}-${getCurrentYearShort()}`
 }
 
-const normalizeMuestraNumero = (raw: string): string => raw.replace(/\D/g, '')
+const parseMuestraCode = (muestra: string, defaultType: 'SU' | 'AG' = 'SU') => {
+    const clean = (muestra || '').trim().toUpperCase().replace(/\s+/g, '')
+    const currentYear = '26'
+    if (!clean) return { number: '', type: defaultType, year: currentYear }
 
-const parseMuestraCode = (raw: string, year: string): { numero: string; suffix: string } => {
-    const value = raw.trim().toUpperCase()
-    if (!value) return { numero: '', suffix: `${DEFAULT_MUESTRA_TIPO}-${year}` }
-    const match = value.match(/^(\d+)-(SU|AG)-(\d{2})$/)
-    if (match) {
-        const tipo = match[2] || DEFAULT_MUESTRA_TIPO
-        return { numero: match[1], suffix: `${tipo}-${year}` }
+    const parts = clean.split('-')
+    
+    let type: 'SU' | 'AG' = defaultType
+    if (clean.includes('-SU')) {
+        type = 'SU'
+    } else if (clean.includes('-AG')) {
+        type = 'AG'
     }
-    const digits = value.match(/^(\d+)/)?.[1] ?? ''
-    const tipo = value.includes('AG') ? 'AG' : DEFAULT_MUESTRA_TIPO
-    return { numero: digits, suffix: `${tipo}-${year}` }
+
+    const filteredParts = parts.filter(p => p !== 'SU' && p !== 'AG')
+
+    let number = ''
+    let year = currentYear
+
+    if (filteredParts.length === 0) {
+        return { number: '', type, year }
+    }
+
+    if (filteredParts.length === 1) {
+        number = filteredParts[0]
+    } else {
+        const last = filteredParts[filteredParts.length - 1]
+        if (/^\d{2,4}$/.test(last)) {
+            year = last.slice(-2)
+            number = filteredParts.slice(0, -1).join('-')
+        } else {
+            number = filteredParts.join('-')
+        }
+    }
+
+    return { number, type, year }
 }
 
-const buildMuestraCode = (numero: string, suffix: string): string => {
-    const clean = normalizeMuestraNumero(numero)
-    return clean ? `${clean}-${suffix}` : ''
+const buildMuestraCode = (number: string, type: 'SU' | 'AG', year: string) => {
+    const cleanNum = number.trim()
+    if (!cleanNum) return ''
+    return `${cleanNum}-${type}-${year}`
 }
 
-const isMuestraValid = (raw: string, year: string): boolean => {
+const isMuestraValid = (raw: string): boolean => {
     const value = raw.trim().toUpperCase()
-    const regex = new RegExp(`^\\d+-(SU|AG)-${year}$`)
+    const regex = /^[A-Z0-9.\- ]+-(SU|AG)-\d{2,4}$/
     return regex.test(value)
 }
 
-const isNumeroOtValid = (raw: string, year: string): boolean => {
+const isNumeroOtValid = (raw: string): boolean => {
     const value = raw.trim()
-    const regex = new RegExp(`^\\d+-${year}$`)
+    const regex = /^[A-Z0-9.\- ]+-\d{2,4}$/
     return regex.test(value)
 }
+
 
 const normalizeRanuradorCodigo = (v: unknown): string => {
     if (typeof v !== 'string') return '-'
@@ -221,9 +244,8 @@ export default function LLPForm() {
     const [loadingEdit, setLoadingEdit] = useState(false)
     const [editingEnsayoId, setEditingEnsayoId] = useState<number | null>(() => getEnsayoId())
     const currentYear = getCurrentYearShort()
-    const muestraSuffixOptions = getMuestraSuffixOptions(currentYear)
-    const [muestraNumero, setMuestraNumero] = useState('')
-    const [muestraSuffix, setMuestraSuffix] = useState<string>(muestraSuffixOptions[0])
+    const [muestraInput, setMuestraInput] = useState('')
+    const [muestraType, setMuestraType] = useState<'SU' | 'AG'>('SU')
 
     const calc = useMemo(() => form.puntos.map(p => compute(p)), [form.puntos])
     const llCheckRows = useMemo(() => {
@@ -295,10 +317,35 @@ export default function LLPForm() {
     }, [])
 
     useEffect(() => {
-        const parsed = parseMuestraCode(form.muestra || '', currentYear)
-        setMuestraNumero((prev) => (prev === parsed.numero ? prev : parsed.numero))
-        setMuestraSuffix((prev) => (prev === parsed.suffix ? prev : parsed.suffix))
-    }, [currentYear, form.muestra])
+        if (form.muestra && !muestraInput) {
+            const { number, type, year } = parseMuestraCode(form.muestra, 'SU')
+            const currentYear = '26'
+            const displayVal = year && year !== currentYear ? `${number}-${year}` : number
+            setMuestraInput(displayVal)
+            setMuestraType(type)
+        }
+    }, [form.muestra, muestraInput])
+
+    useEffect(() => {
+        if (!form.muestra) {
+            setMuestraInput('')
+            setMuestraType('SU')
+        }
+    }, [form.muestra])
+
+    const handleMuestraInputChange = (val: string) => {
+        setMuestraInput(val)
+        const { number, year } = parseMuestraCode(val, muestraType)
+        const newCode = buildMuestraCode(number, muestraType, year)
+        setField('muestra', newCode)
+    }
+
+    const handleTypeToggle = (newType: 'SU' | 'AG') => {
+        setMuestraType(newType)
+        const { number, year } = parseMuestraCode(muestraInput, newType)
+        const newCode = buildMuestraCode(number, newType, year)
+        setField('muestra', newCode)
+    }
 
     useEffect(() => {
         const raw = localStorage.getItem(`${DRAFT_KEY}:${editingEnsayoId ?? 'new'}`)
@@ -342,12 +389,12 @@ export default function LLPForm() {
             toast.error('Complete Muestra, N OT y Realizado por.')
             return
         }
-        if (!isMuestraValid(form.muestra, currentYear)) {
-            toast.error(`La muestra debe terminar en SU-${currentYear} o AG-${currentYear}.`)
+        if (!isMuestraValid(form.muestra)) {
+            toast.error(`La muestra debe tener un formato válido (ej: 1234-SU-26 o 1234-AG-26).`)
             return
         }
-        if (!isNumeroOtValid(form.numero_ot, currentYear)) {
-            toast.error(`El N OT debe terminar en -${currentYear}.`)
+        if (!isNumeroOtValid(form.numero_ot)) {
+            toast.error(`El N OT debe tener un formato válido (ej: 1234-26).`)
             return
         }
         setLoading(true)
@@ -362,7 +409,7 @@ export default function LLPForm() {
                 const url = URL.createObjectURL(blob)
                 const a = document.createElement('a')
                 a.href = url
-                a.download = filename || `${buildFormatPreview(form.muestra, 'SU', 'LLP')}.xlsx`
+                a.download = filename || `${buildFormatPreview(form.muestra, muestraType, 'LLP')}.xlsx`
                 a.click()
                 URL.revokeObjectURL(url)
             } else {
@@ -408,33 +455,40 @@ export default function LLPForm() {
                         <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div>
                                 <label className="block text-xs font-medium text-muted-foreground mb-1">Muestra *</label>
-                                <div className="flex gap-2">
+                                <div className="flex items-center gap-1.5">
                                     <input
                                         type="text"
-                                        value={muestraNumero}
-                                        onChange={e => {
-                                            const nextNumero = normalizeMuestraNumero(e.target.value)
-                                            setMuestraNumero(nextNumero)
-                                            setField('muestra', buildMuestraCode(nextNumero, muestraSuffix))
-                                        }}
-                                        placeholder="123"
+                                        value={muestraInput}
+                                        onChange={(e) => handleMuestraInputChange(e.target.value)}
+                                        placeholder="1234"
                                         autoComplete="off"
                                         data-lpignore="true"
-                                        className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                        className="flex-1 h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                                     />
-                                    <select
-                                        value={muestraSuffix}
-                                        onChange={e => {
-                                            const nextSuffix = e.target.value
-                                            setMuestraSuffix(nextSuffix)
-                                            setField('muestra', buildMuestraCode(muestraNumero, nextSuffix))
-                                        }}
-                                        className="w-full h-9 pl-3 pr-8 rounded-md border border-input bg-background text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-ring"
-                                    >
-                                        {muestraSuffixOptions.map(option => (
-                                            <option key={option} value={option}>{option}</option>
-                                        ))}
-                                    </select>
+                                    <div className="flex border border-slate-300 rounded overflow-hidden shrink-0 h-9 bg-background">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleTypeToggle('SU')}
+                                            className={`px-3 py-1 text-xs font-bold transition-all ${
+                                                muestraType === 'SU'
+                                                    ? 'bg-slate-900 text-white'
+                                                    : 'bg-white text-slate-600 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            SU
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleTypeToggle('AG')}
+                                            className={`px-3 py-1 text-xs font-bold border-l border-slate-300 transition-all ${
+                                                muestraType === 'AG'
+                                                    ? 'bg-slate-900 text-white'
+                                                    : 'bg-white text-slate-600 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            AG
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             {renderText('N OT *', form.numero_ot, v => setField('numero_ot', v), `1234-${currentYear}`, () => setField('numero_ot', normalizeNumeroOtCode(form.numero_ot || '')))}
@@ -836,7 +890,7 @@ export default function LLPForm() {
             </div>
             <FormatConfirmModal
                 open={pendingFormatAction !== null}
-                formatLabel={buildFormatPreview(form.muestra, 'SU', 'LLP')}
+                formatLabel={buildFormatPreview(form.muestra, muestraType, 'LLP')}
                 actionLabel={pendingFormatAction ? 'Guardar y Descargar' : 'Guardar'}
                 onClose={() => setPendingFormatAction(null)}
                 onConfirm={() => {
