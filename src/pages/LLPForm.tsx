@@ -468,6 +468,14 @@ export default function LLPForm() {
     return (
         <div className="max-w-[1780px] mx-auto p-4 md:p-6">
             <div className="flex items-center gap-3 mb-6"><div className="p-2 rounded-lg bg-primary/10"><Beaker className="h-6 w-6 text-primary" /></div><div><h1 className="text-xl font-bold text-foreground">Limite Liquido / Limite Plastico - ASTM D4318-17e1</h1><p className="text-sm text-muted-foreground">Formulario operativo LLP</p></div></div>
+            
+            <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg text-xs mb-5 flex items-start gap-2">
+                <span className="font-bold shrink-0">💡 Sugerencia:</span>
+                <div>
+                    Si la muestra es <strong>No Presenta (NP)</strong> o no tiene límites plásticos, escriba <strong>"Np"</strong> o <strong>"NP"</strong> en la celda del <strong>Recipiente N°</strong> para registrarla como tal y marcar el ensayo como completo.
+                </div>
+            </div>
+
             <div>
                 <div className="space-y-5">
                     {loadingEdit ? <div className="h-10 rounded-lg border border-border bg-muted/40 px-3 text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Cargando ensayo...</div> : null}
