@@ -469,12 +469,17 @@ export default function LLPForm() {
         <div className="max-w-[1780px] mx-auto p-4 md:p-6">
             <div className="flex items-center gap-3 mb-6"><div className="p-2 rounded-lg bg-primary/10"><Beaker className="h-6 w-6 text-primary" /></div><div><h1 className="text-xl font-bold text-foreground">Limite Liquido / Limite Plastico - ASTM D4318-17e1</h1><p className="text-sm text-muted-foreground">Formulario operativo LLP</p></div></div>
             
-            <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg text-xs mb-5 flex items-start gap-2">
-                <span className="font-bold shrink-0">💡 Sugerencia:</span>
-                <div>
-                    Si la muestra es <strong>No Presenta (NP)</strong> o no tiene límites plásticos, escriba <strong>"Np"</strong> o <strong>"NP"</strong> en la celda del <strong>Recipiente N°</strong> para registrarla como tal y marcar el ensayo como completo.
+            {form.puntos.some(pt => {
+                const val = (pt.recipiente_numero || '').trim().toUpperCase();
+                return ['NP', 'N.P.', 'NP.', 'NO PRESENTO', 'NO PRESENTA', 'NO PLASTICO'].includes(val);
+            }) && (
+                <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg text-xs mb-5 flex items-start gap-2">
+                    <span className="font-bold shrink-0">💡 Sugerencia:</span>
+                    <div>
+                        Se ha detectado <strong>"NP"</strong> en uno de los recipientes. El sistema procesará esta muestra como <strong>No Presenta / No Plástico</strong>, lo que marcará el ensayo como <strong>COMPLETO</strong> al guardar.
+                    </div>
                 </div>
-            </div>
+            )}
 
             <div>
                 <div className="space-y-5">
