@@ -428,22 +428,33 @@ export default function LLPForm() {
                 ranurador_codigo: normalizeRanuradorCodigo(form.ranurador_codigo),
                 puntos: form.puntos.map((p, idx) => ({ ...p, numero_golpes: idx < 3 ? parseNum(p.numero_golpes) : null })),
             }
+            let savedId = editingEnsayoId
+
             if (download) {
-                const { blob, filename } = await saveAndDownloadLLPExcel(payload, editingEnsayoId ?? undefined)
+                const { blob, ensayoId: returnedId, filename } = await saveAndDownloadLLPExcel(payload, editingEnsayoId ?? undefined)
                 const url = URL.createObjectURL(blob)
                 const a = document.createElement('a')
                 a.href = url
                 a.download = filename || `${buildFormatPreview(form.muestra, muestraType, 'LLP')}.xlsx`
                 a.click()
                 URL.revokeObjectURL(url)
+                if (returnedId) savedId = returnedId
             } else {
-                await saveLLPEnsayo(payload, editingEnsayoId ?? undefined)
+                const saved = await saveLLPEnsayo(payload, editingEnsayoId ?? undefined)
+                savedId = saved.id
             }
+
+            if (savedId && savedId !== editingEnsayoId) {
+                setEditingEnsayoId(savedId)
+                localStorage.removeItem(`${DRAFT_KEY}:new`)
+                const newUrl = new URL(window.location.href)
+                newUrl.searchParams.set('ensayo_id', String(savedId))
+                window.history.replaceState(null, '', newUrl.toString())
+            }
+
             localStorage.removeItem(`${DRAFT_KEY}:${editingEnsayoId ?? 'new'}`)
-            setForm(initialState())
-            setEditingEnsayoId(null)
-            if (window.parent !== window) window.parent.postMessage({ type: 'CLOSE_MODAL' }, '*')
             toast.success(download ? 'LLP guardado y descargado.' : 'LLP guardado.')
+            if (window.parent !== window) window.parent.postMessage({ type: 'ENSAYO_SAVED' }, '*')
         } catch (error: unknown) {
             let msg = error instanceof Error ? error.message : 'Error desconocido'
             if (axios.isAxiosError(error) && typeof error.response?.data?.detail === 'string') msg = error.response.data.detail
